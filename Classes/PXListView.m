@@ -107,8 +107,6 @@ NSString * const PXListViewSelectionDidChange = @"PXListViewSelectionDidChange";
 
 - (void)reloadData
 {
-	id <PXListViewDelegate> delegate = [self delegate];
-	
 	// Move all visible cells to the reusable cells array
 	NSUInteger numCells = [_visibleCells count];
 	for (NSUInteger i = 0; i < numCells; i++)
@@ -124,17 +122,14 @@ NSString * const PXListViewSelectionDidChange = @"PXListViewSelectionDidChange";
 	[_selectedRows removeAllIndexes];
     _lastSelectedRow = -1;
 	
-	if([delegate conformsToProtocol:@protocol(PXListViewDelegate)])
-	{
-		_numberOfRows = [delegate numberOfRowsInListView:self];
-		[self cacheCellLayout];
-		
-		NSRange visibleRange = [self visibleRange];
-		_currentRange = visibleRange;
-		[self addCellsFromVisibleRange];
-		
-		[self layoutCells];
-	}
+	_numberOfRows = [self.delegate numberOfRowsInListView:self];
+	[self cacheCellLayout];
+	
+	NSRange visibleRange = [self visibleRange];
+	_currentRange = visibleRange;
+	[self addCellsFromVisibleRange];
+	
+	[self layoutCells];
 }
 
 
@@ -329,20 +324,15 @@ NSString * const PXListViewSelectionDidChange = @"PXListViewSelectionDidChange";
 
 - (void)addCellsFromVisibleRange
 {
-	id<PXListViewDelegate>	delegate = [self delegate];
-	
-	if([delegate conformsToProtocol: @protocol(PXListViewDelegate)])
-	{
-		NSRange visibleRange = [self visibleRange];
+	NSRange visibleRange = [self visibleRange];
 		
-		for(NSUInteger i = visibleRange.location; i < NSMaxRange(visibleRange); i++)
-		{
-			id cell = nil;
-            cell = [delegate listView: self cellForRow: i];
-			[_visibleCells addObject:cell];
+	for(NSUInteger i = visibleRange.location; i < NSMaxRange(visibleRange); i++)
+	{
+		id cell = nil;
+        cell = [self.delegate listView: self cellForRow: i];
+		[_visibleCells addObject:cell];
 			
-			[self layoutCell:cell atRow:i];
-		}
+		[self layoutCell:cell atRow:i];
 	}
 }
 
@@ -445,47 +435,37 @@ NSString * const PXListViewSelectionDidChange = @"PXListViewSelectionDidChange";
 {
 	id <PXListViewDelegate> delegate = [self delegate];
 	
-	if([delegate conformsToProtocol:@protocol(PXListViewDelegate)])
-	{
-        CGFloat cellWidth = NSWidth([self contentViewRect]);
-        if([self inLiveResize]&&![self usesLiveResize]) {
-            cellWidth = _widthPriorToResize;
-        }
+    CGFloat cellWidth = NSWidth([self contentViewRect]);
+    if([self inLiveResize]&&![self usesLiveResize]) {
+        cellWidth = _widthPriorToResize;
+    }
 
-		CGFloat rowHeight = [delegate listView:self heightOfRow:row];
+	CGFloat rowHeight = [self.delegate listView:self heightOfRow:row];
 		
-		return NSMakeRect(0.0f, _cellYOffsets[row], cellWidth, rowHeight);
-	}
-	
-	return NSZeroRect;
+	return NSMakeRect(0.0f, _cellYOffsets[row], cellWidth, rowHeight);
 }
 
 - (void)cacheCellLayout
 {
-	id <PXListViewDelegate> delegate = [self delegate];
-	
-	if([delegate conformsToProtocol:@protocol(PXListViewDelegate)])
+	CGFloat totalHeight = 0;
+		
+	//Allocate the offset caching array
+	_cellYOffsets = (CGFloat*)malloc(sizeof(CGFloat)*_numberOfRows);
+		
+	for( NSUInteger i = 0; i < _numberOfRows; i++ )
 	{
-		CGFloat totalHeight = 0;
-		
-		//Allocate the offset caching array
-		_cellYOffsets = (CGFloat*)malloc(sizeof(CGFloat)*_numberOfRows);
-		
-		for( NSUInteger i = 0; i < _numberOfRows; i++ )
-		{
-			_cellYOffsets[i] = totalHeight;
-			CGFloat cellHeight = [delegate listView:self heightOfRow:i];
+		_cellYOffsets[i] = totalHeight;
+		CGFloat cellHeight = [self.delegate listView:self heightOfRow:i];
 			
-			totalHeight += cellHeight +[self cellSpacing];
-		}
-		
-		_totalHeight = totalHeight;
-		
-		NSRect bounds = [self bounds];
-		CGFloat documentHeight = _totalHeight>NSHeight(bounds)?_totalHeight: (NSHeight(bounds) -2);
-		
-		[[self documentView] setFrame:NSMakeRect(0.0f, 0.0f, NSWidth([self contentViewRect]), documentHeight)];
+		totalHeight += cellHeight +[self cellSpacing];
 	}
+		
+	_totalHeight = totalHeight;
+		
+	NSRect bounds = [self bounds];
+	CGFloat documentHeight = _totalHeight>NSHeight(bounds)?_totalHeight: (NSHeight(bounds) -2);
+		
+	[[self documentView] setFrame:NSMakeRect(0.0f, 0.0f, NSWidth([self contentViewRect]), documentHeight)];
 }
 
 - (void)layoutCells
